@@ -11,7 +11,7 @@ dnl Specify name, version and contact e-mail of the package.
 AC_INIT([ecdsatool], [0.1], [http://github.com/atheme/ecdsatool])
 
 dnl Specifies where your sources are.
-AC_CONFIG_SRCDIR(src)
+AC_CONFIG_SRCDIR(libecdsaauth)
 
 dnl If your package uses C, you want a C compiler and a C preprocessor
 AC_PROG_CC
@@ -27,6 +27,7 @@ dnl project as a static library and link it to the final program later so you
 dnl can easier split your program into multiple directories), you need to
 dnl uncomment the following line.
 AC_PATH_TOOL(AR, ar)
+AC_PATH_TOOL(RANLIB, ranlib)
 
 dnl If you want to build a shared library, you need to call BUILDSYS_SHARED_LIB.
 dnl It will automatically set the required LIB_* and PLUGIN_* variables.
