@@ -20,8 +20,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "libecdsaauth/keypair.h"
+#include "libecdsaauth/op.h"
 #include "tool-applet.h"
 
 static int tool_keygen(int argc, const char *argv[])
@@ -92,12 +94,61 @@ static int tool_keyinfo(int argc, const char *argv[])
 	return EXIT_SUCCESS;
 }
 
+static int tool_sign(int argc, const char *argv[])
+{
+	libecdsaauth_key_t *key;
+	char *signature = NULL;
+	char *in = strdup(argv[2]);
+	size_t siglen;
+
+	if (argv[1] == NULL)
+	{
+		fprintf(stderr, "usage: ecdsatool sign privatekey.pem base64challenge\n");
+		return EXIT_FAILURE;
+	}
+
+	key = libecdsaauth_key_load(argv[1]);
+	libecdsaauth_sign_base64(key, in, strlen(in) + 1, &signature, &siglen);
+	libecdsaauth_key_free(key);
+
+	if (signature != NULL)
+	{
+		printf("%s\n", signature);
+		free(signature);
+	}
+	else
+		fprintf(stderr, "signing failed\n");
+
+	free(in);
+
+	return EXIT_SUCCESS;
+}
+
+static tool_applet_t tool_applets[];
+
+static int tool_usage(int argc, const char *argv[])
+{
+	tool_applet_t *applet;
+
+	printf("usage: ecdsatool applet [options]\n");
+	printf("\nthe following applets are available: ");
+
+	for (applet = tool_applets; applet->name != NULL; applet++)
+		printf("%s ", applet->name);
+
+	printf("\n");
+
+	return EXIT_FAILURE;
+}
+
 /**************************************************************************************/
 
 static tool_applet_t tool_applets[] = {
 	{"keygen", tool_keygen},
 	{"pubkey", tool_pubkey},
 	{"keyinfo", tool_keyinfo},
+	{"sign", tool_sign},
+	{"usage", tool_usage},
 	{NULL, NULL}
 };
 
