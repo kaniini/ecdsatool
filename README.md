@@ -14,6 +14,11 @@ It is built ontop of a library called `libecdsaauth`, which provides
 primitives for patching ECDSA challenge support into pre-existing clients
 and daemons.
 
+Also a modified version of the Irssi `cap_sasl.pl` script is included, which
+uses `ecdsatool` to do the authentication, because Perl is hopeless and
+doesn't have a working ECDSA implementation.  Use the `ECDSA-NIST256P-CHALLENGE`
+mechanism with `/sasl set`.
+
 ## how to use the tool?
 
 First, lets create a keypair, and store it in `/home/nenolod/irc.pem`:
