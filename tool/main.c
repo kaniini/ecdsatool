@@ -44,6 +44,29 @@ static int tool_keygen(int argc, const char *argv[])
 
 	pubkey = libecdsaauth_key_public_key_base64(key);
 	printf("%s\n", pubkey);
+	free(pubkey);
+
+	return EXIT_SUCCESS;
+}
+
+static int tool_pubkey(int argc, const char *argv[])
+{
+	libecdsaauth_key_t *key;
+	char *pubkey;
+
+	if (argv[1] == NULL)
+	{
+		fprintf(stderr, "usage: ecdsatool pubkey privatekey.pem\n");
+		return EXIT_FAILURE;
+	}
+
+	key = libecdsaauth_key_load(argv[1]);
+
+	pubkey = libecdsaauth_key_public_key_base64(key);
+	printf("%s\n", pubkey);
+	free(pubkey);
+
+	libecdsaauth_key_free(key);
 
 	return EXIT_SUCCESS;
 }
@@ -52,6 +75,7 @@ static int tool_keygen(int argc, const char *argv[])
 
 static tool_applet_t tool_applets[] = {
 	{"keygen", tool_keygen},
+	{"pubkey", tool_pubkey},
 	{NULL, NULL}
 };
 
