@@ -21,9 +21,37 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "libecdsaauth/keypair.h"
 #include "tool-applet.h"
 
+static int tool_keygen(int argc, const char *argv[])
+{
+	FILE *pubout;
+	libecdsaauth_key_t *key;
+	char *pubkey;
+
+	if (argv[1] == NULL)
+	{
+		fprintf(stderr, "usage: ecdsatool keygen privatekey.pem\n");
+		return EXIT_FAILURE;
+	}
+
+	key = libecdsaauth_key_new();
+
+	pubout = fopen(argv[1], "w");
+	PEM_write_ECPrivateKey(pubout, key->eckey, NULL, NULL, 0, NULL);
+	fclose(pubout);
+
+	pubkey = libecdsaauth_key_public_key_base64(key);
+	printf("%s\n", pubkey);
+
+	return EXIT_SUCCESS;
+}
+
+/**************************************************************************************/
+
 static tool_applet_t tool_applets[] = {
+	{"keygen", tool_keygen},
 	{NULL, NULL}
 };
 
