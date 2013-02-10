@@ -103,3 +103,68 @@ bool libecdsaauth_sign_base64(libecdsaauth_key_t *key, unsigned char *in, size_t
 
 	return true;
 }
+
+/*******************************************************************************************/
+
+/*
+ * Create a new challenge for a key.
+ * Returns an object for tracking the challenge.
+ */
+libecdsaauth_challenge_t *libecdsaauth_challenge_new(libecdsaauth_key_t *key)
+{
+	libecdsaauth_challenge_t *challenge = calloc(sizeof(libecdsaauth_challenge_t), 1);
+
+	challenge->key = key;
+	RAND_pseudo_bytes(challenge->blob, sizeof(challenge->blob));
+
+	return challenge;
+}
+
+/*
+ * Frees a challenge.
+ */
+void libecdsaauth_challenge_free(libecdsaauth_challenge_t *challenge)
+{
+	free(challenge);
+}
+
+/*
+ * Returns the challenge bytes as a binary blob.
+ */
+unsigned char *libecdsaauth_challenge_bytes(libecdsaauth_challenge_t *challenge)
+{
+	if (challenge->key == NULL)
+		return NULL;
+
+	return challenge->blob;
+}
+
+/*
+ * Returns the size of the challenge payload.
+ */
+size_t libecdsaauth_challenge_size(libecdsaauth_challenge_t *challenge)
+{
+	return sizeof(challenge->blob);
+}
+
+/*
+ * Verify a challenge against a blob.
+ */
+bool libecdsaauth_challenge_verify(libecdsaauth_challenge_t *challenge, unsigned char *blob, size_t len)
+{
+	return libecdsaauth_verify(challenge->key, challenge->blob, sizeof(challenge->blob), blob, len);
+}
+
+/*
+ * Verify a challenge against a base64 blob.
+ */
+bool libecdsaauth_challenge_verify_base64(libecdsaauth_challenge_t *challenge, char *blob_base64)
+{
+	unsigned char blob[1024];
+	size_t bloblen;
+
+	bloblen = base64_decode(blob_base64, blob, sizeof blob);
+
+	return libecdsaauth_challenge_verify(challenge, blob, bloblen);
+}
+

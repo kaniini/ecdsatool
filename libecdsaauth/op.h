@@ -45,4 +45,43 @@ extern bool libecdsaauth_sign(libecdsaauth_key_t *key, unsigned char *in, size_t
  */
 extern bool libecdsaauth_sign_base64(libecdsaauth_key_t *key, unsigned char *in, size_t inlen, char **out, size_t *outlen);
 
+/*
+ * Challenge lifecycle.
+ */
+typedef struct libecdsaauth_challenge_s {
+	libecdsaauth_key_t *key;
+	unsigned char blob[SHA256_DIGEST_LENGTH];
+} libecdsaauth_challenge_t;
+
+/*
+ * Create a new challenge for a key.
+ * Returns an object for tracking the challenge.
+ */
+extern libecdsaauth_challenge_t *libecdsaauth_challenge_new(libecdsaauth_key_t *key);
+
+/*
+ * Frees a challenge.
+ */
+extern void libecdsaauth_challenge_free(libecdsaauth_challenge_t *challenge);
+
+/*
+ * Returns the challenge bytes as a binary blob.
+ */
+extern unsigned char *libecdsaauth_challenge_bytes(libecdsaauth_challenge_t *challenge);
+
+/*
+ * Returns the size of the challenge payload.
+ */
+extern size_t libecdsaauth_challenge_size(libecdsaauth_challenge_t *challenge);
+
+/*
+ * Verify a challenge against a blob.
+ */
+extern bool libecdsaauth_challenge_verify(libecdsaauth_challenge_t *challenge, unsigned char *blob, size_t len);
+
+/*
+ * Verify a challenge against a base64 blob.
+ */
+extern bool libecdsaauth_challenge_verify_base64(libecdsaauth_challenge_t *challenge, char *blob_base64);
+
 #endif
