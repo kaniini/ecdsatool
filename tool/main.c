@@ -98,28 +98,36 @@ static int tool_sign(int argc, const char *argv[])
 {
 	libecdsaauth_key_t *key;
 	char *signature = NULL;
-	char *in = strdup(argv[2]);
+	char *in = NULL;
 	size_t siglen;
 
-	if (argv[1] == NULL)
+	if (argc < 3)
 	{
 		fprintf(stderr, "usage: ecdsatool sign privatekey.pem base64challenge\n");
 		return EXIT_FAILURE;
 	}
 
 	key = libecdsaauth_key_load(argv[1]);
-	libecdsaauth_sign_base64(key, in, strlen(in) + 1, &signature, &siglen);
-	libecdsaauth_key_free(key);
-
-	if (signature != NULL)
+	if (key == NULL)
 	{
-		printf("%s\n", signature);
-		free(signature);
+		fprintf(stderr, "loading key failed\n");
+		return EXIT_FAILURE;
 	}
-	else
-		fprintf(stderr, "signing failed\n");
+	in = strdup(argv[2]);
+
+	libecdsaauth_sign_base64(key, in, strlen(in) + 1, &signature, &siglen);
 
 	free(in);
+	libecdsaauth_key_free(key);
+
+	if (signature == NULL)
+	{
+		fprintf(stderr, "signing failed\n");
+		return EXIT_FAILURE;
+	}
+
+	printf("%s\n", signature);
+	free(signature);
 
 	return EXIT_SUCCESS;
 }
