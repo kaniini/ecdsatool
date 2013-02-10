@@ -44,6 +44,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <assert.h>
 
 static const char Base64[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -129,10 +130,10 @@ size_t base64_encode(char const *src, size_t srclength, char *target, size_t tar
 		output[1] = ((input[0] & 0x03) << 4) + (input[1] >> 4);
 		output[2] = ((input[1] & 0x0f) << 2) + (input[2] >> 6);
 		output[3] = input[2] & 0x3f;
-		soft_assert(output[0] < 64);
-		soft_assert(output[1] < 64);
-		soft_assert(output[2] < 64);
-		soft_assert(output[3] < 64);
+		assert(output[0] < 64);
+		assert(output[1] < 64);
+		assert(output[2] < 64);
+		assert(output[3] < 64);
 
 		if (datalength + 4 > targsize)
 			return (-1);
@@ -152,9 +153,9 @@ size_t base64_encode(char const *src, size_t srclength, char *target, size_t tar
 		output[0] = input[0] >> 2;
 		output[1] = ((input[0] & 0x03) << 4) + (input[1] >> 4);
 		output[2] = ((input[1] & 0x0f) << 2) + (input[2] >> 6);
-		soft_assert(output[0] < 64);
-		soft_assert(output[1] < 64);
-		soft_assert(output[2] < 64);
+		assert(output[0] < 64);
+		assert(output[1] < 64);
+		assert(output[2] < 64);
 
 		if (datalength + 4 > targsize)
 			return (-1);
