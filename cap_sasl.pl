@@ -1,19 +1,19 @@
 use strict;
 use Irssi;
 use vars qw($VERSION %IRSSI);
-# $Id: cap_sasl.pl 5330 2006-05-31 02:25:21Z gxti $
+# $Id$
 
 use MIME::Base64;
 
-$VERSION = "1.2";
+$VERSION = "1.6";
 
 %IRSSI = (
     authors     => 'Michael Tharp and Jilles Tjoelker',
     contact     => 'gxti@partiallystapled.com',
     name        => 'cap_sasl.pl',
-    description => 'Implements PLAIN SASL authentication mechanism for use with charybdis ircds, and enables CAP MULTI-PREFIX',
+    description => 'Implements SASL authentication and enables CAP "multi-prefix"',
     license     => 'GNU General Public License',
-    url         => 'http://sasl.charybdis.be/',
+    url         => 'http://ircv3.atheme.org/extensions/sasl-3.1',
 );
 
 my %sasl_auth = ();
@@ -23,20 +23,23 @@ sub timeout;
 
 sub server_connected {
 	my $server = shift;
-	$server->send_raw_now("CAP LS");
+	if (uc $server->{chat_type} eq 'IRC') {
+		$server->send_raw_now("CAP LS");
+	}
 }
 
 sub event_cap {
 	my ($server, $args, $nick, $address) = @_;
-	my ($subcmd, $caps, $tosend);
+	my ($subcmd, $caps, $tosend, $sasl);
 
 	$tosend = '';
+	$sasl = $sasl_auth{$server->{tag}};
 	if ($args =~ /^\S+ (\S+) :(.*)$/) {
 		$subcmd = uc $1;
 		$caps = ' '.$2.' ';
 		if ($subcmd eq 'LS') {
 			$tosend .= ' multi-prefix' if $caps =~ / multi-prefix /i;
-			$tosend .= ' sasl' if $caps =~ / sasl /i && defined($sasl_auth{$server->{tag}});
+			$tosend .= ' sasl' if $caps =~ / sasl /i && defined($sasl);
 			$tosend =~ s/^ //;
 			$server->print('', "CLICAP: supported by server:$caps");
 			if (!$server->{connected}) {
@@ -51,12 +54,13 @@ sub event_cap {
 		} elsif ($subcmd eq 'ACK') {
 			$server->print('', "CLICAP: now enabled:$caps");
 			if ($caps =~ / sasl /i) {
-				$sasl_auth{$server->{tag}}{buffer} = '';
-				if($mech{$sasl_auth{$server->{tag}}{mech}}) {
-					$server->send_raw_now("AUTHENTICATE " . $sasl_auth{$server->{tag}}{mech});
-					Irssi::timeout_add_once(5000, \&timeout, $server->{tag});
-				}else{
-					$server->print('', 'SASL: attempted to start unknown mechanism "' . $sasl_auth{$server->{tag}}{mech} . '"');
+				$sasl->{buffer} = '';
+				$sasl->{step} = 0;
+				if ($mech{$sasl->{mech}}) {
+					$server->send_raw_now("AUTHENTICATE " . $sasl->{mech});
+					Irssi::timeout_add_once(7500, \&timeout, $server->{tag});
+				} else {
+					$server->print('', 'SASL: attempted to start unknown mechanism "' . $sasl->{mech} . '"');
 				}
 			}
 			elsif (!$server->{connected}) {
@@ -89,13 +93,13 @@ sub event_authenticate {
 	$out = '' unless defined $out;
 	$out = $out eq '' ? '+' : encode_base64($out, '');
 
-	while(length $out >= 400) {
+	while (length $out >= 400) {
 		my $subout = substr($out, 0, 400, '');
 		$server->send_raw_now("AUTHENTICATE $subout");
 	}
-	if(length $out) {
+	if (length $out) {
 		$server->send_raw_now("AUTHENTICATE $out");
-	}else{ # Last piece was exactly 400 bytes, we have to send some padding to indicate we're done
+	} else { # Last piece was exactly 400 bytes, we have to send some padding to indicate we're done
 		$server->send_raw_now("AUTHENTICATE +");
 	}
 
@@ -118,8 +122,8 @@ sub event_saslend {
 sub timeout {
 	my $tag = shift;
 	my $server = Irssi::server_find_tag($tag);
-	if(!$server->{connected}) {
-		$server->print('', "SASL: authentication timed out");
+	if ($server && !$server->{connected}) {
+		$server->print('', "SASL: authentication timed out", MSGLEVEL_CLIENTERROR);
 		$server->send_raw_now("CAP END");
 	}
 }
@@ -138,13 +142,13 @@ sub cmd_sasl_set {
 	my ($data, $server, $item) = @_;
 
 	if (my($net, $u, $p, $m) = $data =~ /^(\S+) (\S+) (\S+) (\S+)$/) {
-		if($mech{uc $m}) {
+		if ($mech{uc $m}) {
 			$sasl_auth{$net}{user} = $u;
 			$sasl_auth{$net}{password} = $p;
 			$sasl_auth{$net}{mech} = uc $m;
 			Irssi::print("SASL: added $net: [$m] $sasl_auth{$net}{user} *");
-		}else{
-			Irssi::print("SASL: unknown mechanism $m");
+		} else {
+			Irssi::print("SASL: unknown mechanism $m", MSGLEVEL_CLIENTERROR);
 		}
 	} elsif ($data =~ /^(\S+)$/) {
 		$net = $1;
@@ -175,6 +179,7 @@ sub cmd_sasl_save {
 	#my ($data, $server, $item) = @_;
 	my $file = Irssi::get_irssi_dir()."/sasl.auth";
 	open FILE, "> $file" or return;
+	chmod(0600, $file);
 	foreach my $net (keys %sasl_auth) {
 		printf FILE ("%s\t%s\t%s\t%s\n", $net, $sasl_auth{$net}{user}, $sasl_auth{$net}{password}, $sasl_auth{$net}{mech});
 	}
@@ -192,12 +197,12 @@ sub cmd_sasl_load {
 		chomp;
 		my ($net, $u, $p, $m) = split (/\t/, $_, 4);
 		$m ||= "PLAIN";
-		if($mech{uc $m}) {
+		if ($mech{uc $m}) {
 			$sasl_auth{$net}{user} = $u;
 			$sasl_auth{$net}{password} = $p;
 			$sasl_auth{$net}{mech} = uc $m;
-		}else{
-			Irssi::print("SASL: unknown mechanism $m");
+		} else {
+			Irssi::print("SASL: unknown mechanism $m", MSGLEVEL_CLIENTERROR);
 		}
 	}
 	close FILE;
@@ -205,7 +210,7 @@ sub cmd_sasl_load {
 }
 
 sub cmd_sasl_mechanisms {
-	Irssi::print("SASL: mechanisms supported: " . join(" ", keys %mech));
+	Irssi::print("SASL: mechanisms supported: " . join(", ", sort keys %mech));
 }
 
 Irssi::signal_add_first('server connected', \&server_connected);
@@ -228,31 +233,52 @@ $mech{PLAIN} = sub {
 	my($sasl, $data) = @_;
 	my $u = $sasl->{user};
 	my $p = $sasl->{password};
-
-	join("\0", $u, $u, $p);
+	return join("\0", $u, $u, $p);
 };
 
-$mech{'ECDSA-NIST256P-CHALLENGE'} = sub {
+$mech{EXTERNAL} = sub {
 	my($sasl, $data) = @_;
 	my $u = $sasl->{user};
-	my $k = $sasl->{password};
-	my $state = $sasl->{state};
-	$state ||= 1;
-	$sasl->{state} = $state;
+	return $u;
+};
 
-	if ($state == 1) {
-		$sasl->{state} = 2;
-		return join("\0", $u, $u);
-	}
+sub in_path {
+	my $exe = shift;
+	return grep {-x "$_/$exe"}
+	       map {length $_ ? $_ : "."}
+	       split(":", $ENV{PATH});
+}
 
-	if ($state == 2) {
-		my $signpayload = encode_base64($data);
-		my $cmdline = "ecdsatool sign $k $signpayload";
-		my $payload = `$cmdline`;
-		return decode_base64($payload);
-	}
+if (in_path("ecdsatool")) {
+	my $ecdsa_sign = sub {
+		if (open(my $proc, "-|", "ecdsatool", "sign", @_)) {
+			chomp(my $resp = <$proc>);
+			close($proc);
+			return $resp;
+		}
+	};
+	$mech{'ECDSA-NIST256P-CHALLENGE'} = sub {
+		my($sasl, $data) = @_;
+		my $u = $sasl->{user};
+		my $k = $sasl->{password};
+		my $step = ++$sasl->{step};
+		if ($step == 1) {
+			if (length $data) {
+				my $signpayload = encode_base64($data);
+				my $payload = $ecdsa_sign->($k, $signpayload);
+				return $u."\0".$u."\0".decode_base64($payload);
+			} else {
+				return $u."\0".$u;
+			}
+		}
+		elsif ($step == 2) {
+			my $signpayload = encode_base64($data);
+			my $payload = $ecdsa_sign->($k, $signpayload);
+			return decode_base64($payload);
+		}
+	};
 };
 
 cmd_sasl_load();
 
-# vim: ts=4
+# vim: ts=4:sw=4
