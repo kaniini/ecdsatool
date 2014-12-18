@@ -261,6 +261,13 @@ if (in_path("ecdsatool")) {
 		my($sasl, $data) = @_;
 		my $u = $sasl->{user};
 		my $k = $sasl->{password};
+		if ($k !~ m!^/!) {
+			$k = Irssi::get_irssi_dir()."/".$k;
+		}
+		if (!-f $k) {
+			Irssi::print("SASL: key file '$k' not found", MSGLEVEL_CLIENTERROR);
+			return;
+		}
 		my $step = ++$sasl->{step};
 		if ($step == 1) {
 			if (length $data) {
