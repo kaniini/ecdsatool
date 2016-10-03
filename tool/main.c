@@ -132,6 +132,37 @@ static int tool_sign(int argc, const char *argv[])
 	return EXIT_SUCCESS;
 }
 
+static int tool_verify(int argc, const char *argv[])
+{
+	libecdsaauth_key_t *key;
+	char inbuf[1024];
+	size_t inlen;
+	bool verify;
+
+	if (argc < 4)
+	{
+		fprintf(stderr, "usage: ecdsatool verify privatekey.pem base64challenge base64signature\n");
+		return EXIT_FAILURE;
+	}
+
+	key = libecdsaauth_key_load(argv[1]);
+	if (key == NULL)
+	{
+		fprintf(stderr, "loading key failed\n");
+		return EXIT_FAILURE;
+	}
+
+	inlen = base64_decode(argv[2], inbuf, sizeof inbuf);
+
+	verify = libecdsaauth_verify_base64(key, inbuf, inlen, argv[3]);
+
+	libecdsaauth_key_free(key);
+
+	printf("verified: %s\n", verify ? "true" : "false");
+
+	return EXIT_SUCCESS;
+}
+
 static tool_applet_t tool_applets[];
 
 static int tool_usage(int argc, const char *argv[])
@@ -156,6 +187,7 @@ static tool_applet_t tool_applets[] = {
 	{"pubkey", tool_pubkey},
 	{"keyinfo", tool_keyinfo},
 	{"sign", tool_sign},
+	{"verify", tool_verify},
 	{"usage", tool_usage},
 	{NULL, NULL}
 };
