@@ -27,7 +27,7 @@
  */
 bool libecdsaauth_verify(libecdsaauth_key_t *key, unsigned char *blob, size_t len, unsigned char *sig, size_t siglen)
 {
-	if (!ECDSA_verify(0, blob, len, sig, siglen, key->eckey))
+	if (1 != ECDSA_verify(0, blob, len, sig, siglen, key->eckey))
 		return false;
 
 	return true;
